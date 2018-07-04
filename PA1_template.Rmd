@@ -7,19 +7,106 @@ output:
 
 
 ## Loading and preprocessing the data
-
+In the first step we will load and preprocess the data.
+Also we show a summary of the data.
+```{r, echo=T}
+  actData = read.csv("activity/activity.csv", stringsAsFactors=F)
+  summary(actData)
+```
 
 
 ## What is mean total number of steps taken per day?
+```{r, echo=T, results="asis"}
+  require(dplyr)
+
+  possibleDates = unique(actData$date)
+  meanSteps = numeric()
+  for(currdate in possibleDates){
+    datesubset = subset(actData, date==currdate)
+    meanThisDay = sum(datesubset$steps, na.rm=T)
+    meanSteps = c(meanSteps, meanThisDay)
+  }
+  meanTotal = mean(meanSteps)
+  medianTotal = median(meanSteps)
+  print(paste0("mean total number of steps = ", meanTotal))
+  print(paste0("median total number of steps = ", medianTotal))
+  hist(meanSteps, breaks=10)
+```
 
 
 
 ## What is the average daily activity pattern?
+```{r, echo=T, results="asis"}
+possibleIntervals = unique(actData$interval)
+avgPerInterval = numeric()
+for(currinterval in possibleIntervals){
+  intervalSubset = subset(actData, interval==currinterval)
+  meanThisInterval = mean(intervalSubset$steps, na.rm=T)
+  avgPerInterval = c(avgPerInterval, meanThisInterval)
+}
+plot(x=possibleIntervals, y=avgPerInterval, type="l", xlab="Time interval (min.)", ylab="Avg. no. steps")
+
+maxStep = max(avgPerInterval)
+maxIndex = which(avgPerInterval==maxStep)
+maxInterval = possibleIntervals[maxIndex]
+cat(paste0("Interval with on average highest number of steps: ", maxInterval, ", with on average ", round(maxStep, 2), " steps"))
+```
 
 
 
 ## Imputing missing values
+```{r}
+no_missing = nrow(subset(actData, is.na(steps)))
+cat("There are ", no_missing, " missing values.")
+
+actData_Missing_Imputed = actData
+for(currinterval in possibleIntervals){
+  NONAindex = which(!is.na(actData_Missing_Imputed$steps) & actData_Missing_Imputed$interval==currinterval)
+  meanWithoutNA = mean(actData_Missing_Imputed[NONAindex,"steps"])
+  NAindex = which(is.na(actData_Missing_Imputed$steps) & actData_Missing_Imputed$interval==currinterval)
+  actData_Missing_Imputed[NAindex, "steps"]=meanWithoutNA
+}
+par(mfrow=c(2,1))
+
+
+meanSteps1 = numeric()
+for(currdate in possibleDates){
+    datesubset = subset(actData_Missing_Imputed, date==currdate)
+    meanThisDay = sum(datesubset$steps, na.rm=T)
+    meanSteps1 = c(meanSteps1, meanThisDay)
+}
+hist(meanSteps, breaks=10, main="Original")
+hist(meanSteps1, breaks=10, main="After imputing missing values")
+
+cat("Estimates before imputation \n Mean:", meanTotal, "\n Median:", medianTotal, "\n")
+
+meanTotal1 = mean(meanSteps1)
+medianTotal1 = median(meanSteps1)
+
+cat("Estimates after imputation \n Mean:", meanTotal1, "\n Median:", medianTotal1, "\n")
+
+
+
+
+```
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+actData_Missing_Imputed$Day = weekdays(as.Date(actData_Missing_Imputed$date))
+actData_Missing_Imputed$WeekOrWeekend = ifelse(actData_Missing_Imputed$Day %in% c("maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"), yes="weekday", no="weekend")
+for(weekpart in c("weekday", "weekend")){
+  avgPerInterval=numeric()
+  datasubset = subset(actData_Missing_Imputed, WeekOrWeekend==weekpart)
+  for(currinterval in possibleIntervals){
+  intervalSubset = subset(datasubset, interval==currinterval)
+  meanThisInterval = mean(intervalSubset$steps, na.rm=T)
+  avgPerInterval = c(avgPerInterval, meanThisInterval)
+  
+  }
+  plot(x=possibleIntervals, y=avgPerInterval, type="l", xlab="Time interval (min.)", ylab="Avg. no. steps", main=weekpart)
+}
+
+```
+
